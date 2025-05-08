@@ -1,19 +1,11 @@
 
 const express = require('express');
-const bodyParser = require('body-parser');
-const path = require('path');
-
+const cors=require('cors');
 const app = express();
-
-// Middleware
-app.use(bodyParser.urlencoded({ extended: true }));
-app.use(express.static('public'));
-
-// EJS Ayarları
-app.set('view engine', 'ejs');
-app.set('views', path.join(__dirname, 'views'));
-
-// 5 Felsefi Akım için Öneriler
+// Middleware ayarları
+app.use(cors());
+app.use(express.json());
+// Sabit veriler (sadece realizm için)
 const recommendations = {
     'nihilizm': {
         books: [
@@ -72,26 +64,6 @@ const recommendations = {
             }
         ]
     },
-    'realizm': {
-        books: [
-            { 
-                title: 'Madame Bovary', 
-                author: 'Gustave Flaubert', 
-                description: 'Gerçekçi edebiyatın başyapıtlarından',
-                
-            }
-        ],
-        movies: [
-            { 
-                title: 'Bisiklet Hırsızları', 
-                year: 1948, 
-                director: 'Vittorio De Sica', 
-                description: 'İtalyan Yeni Gerçekçilik akımının şaheseri',
-                
-            }
-        ]
-        
-    },
     'feminizm': {
         books: [
             { 
@@ -110,46 +82,61 @@ const recommendations = {
                 
             }
         ]
+    },
+    'realizm': {
+        books: [
+            { title: 'Madame Bovary', author: 'Gustave Flaubert', description: 'Gerçekçi edebiyatin başyapıtlarından biri olan bu roman, burjuva yaşamının yüzeyselliğini eleştirir.' },
+            { title: 'Savaş ve Barış', author: 'Lev Tolstoy', description: 'Tarihsel gerçekçiliğin en önemli örneklerinden biri, Napolyon dönemi Rusyasını anlatır.' },
+            { title: 'Kırmızı ve Siyah', author: 'Stendhal', description: 'Toplumsal yükseliş ve aşk üzerine gerçekçi bir roman.' }
+        ],
+        movies: [
+            { title: 'Bicycle Thieves (Bisiklet Hırsızları)', year: 1948, director: 'Vittorio De Sica', description: 'İtalyan Yeni Gerçekçilik akımının en önemli filmlerinden biri.' },
+            { title: 'The Grapes of Wrath (Gazap Üzümleri)', year: 1940, director: 'John Ford', description: 'Büyük Buhran döneminde bir ailenin yaşadıklarını anlatır.' },
+            { title: 'Tokyo Story (Tokyo Hikayesi)', year: 1953, director: 'Yasujirō Ozu', description: 'Japon aile yapısındaki değişimi gerçekçi bir şekilde ele alır.' }
+        ],
+        series: [
+            { title: 'The Wire', year: '2002-2008', creator: 'David Simon', description: 'Baltimore\'daki uyuşturucu ticareti, liman işçileri, siyaset ve eğitim sistemini gerçekçi bir şekilde ele alır.' },
+            { title: 'Mad Men', year: '2007-2015', creator: 'Matthew Weiner', description: '1960\'ların reklam dünyasını ve toplumsal değişimleri anlatır.' },
+            { title: 'The Crown', year: '2016-', creator: 'Peter Morgan', description: 'Kraliçe II. Elizabeth\'in saltanatının tarihsel gerçeklere dayalı dramatizasyonu.' }
+        ]
     }
 };
 
-// Ana sayfa
-app.get('/', (req, res) => {
-    res.render('index', { 
-        recommendations: null, 
-        philosophy: '', 
-        error: null,
-        allPhilosophies: Object.keys(recommendations) // Tüm akımları gönder
-    });
-});
-
-// Öneri isteği
-app.post('/recommend', (req, res) => {
-    const input = req.body.philosophy.toLowerCase();
-    const philosophy = Object.keys(recommendations).find(key => 
-        key.toLowerCase() === input
-    );
-    
-    if (philosophy) {
-        res.render('index', {
-            recommendations: recommendations[philosophy],
-            philosophy: philosophy.charAt(0).toUpperCase() + philosophy.slice(1),
-            error: null,
-            allPhilosophies: Object.keys(recommendations)
+// API endpoint: POST /recommend// GET Endpoint (Frontend için)
+app.get('/api/recommend/:philosophy', (req, res) => {
+    try {
+      const philosophy = req.params.philosophy || 'realizm';
+      const data = recommendations[philosophy];
+      
+      if (!data) {
+        return res.status(404).json({
+          error: `${philosophy} bulunamadı`,
+          available: Object.keys(recommendations)
         });
-    } else {
-        res.render('index', {
-            recommendations: null,
-            philosophy: input,
-            error: 'Bu akım için öneri bulunamadı. Deneyebileceğiniz akımlar: ' + 
-                   Object.keys(recommendations).join(', '),
-            allPhilosophies: Object.keys(recommendations)
-        });
+      }
+  
+      res.json({
+        success: true,
+        philosophy,
+        ...data
+      });
+      
+    } catch (err) {
+      console.error("API Hatası:", err);
+      res.status(500).json({ error: "Sunucu hatası" });
     }
-});
+  });
+  
+  // POST Endpoint (Opsiyonel)
+  app.post('/recommend', (req, res) => {
+    const { philosophy } = req.body;
+    // ... POST işlemleri
+  });
+  
+  // Sunucu başlatma
+  const PORT = process.env.PORT || 4000;
+  app.listen(PORT, () => {
+    console.log(`✅ Sunucu http://localhost:${PORT} adresinde çalışıyor`);
+    console.log(`📚 Kullanılabilir felsefeler: ${Object.keys(recommendations).join(', ')}`);
+  });
 
-// Sunucu
-const PORT = process.env.PORT || 4000;
-app.listen(PORT, () => {
-    console.log(`Sunucu http://localhost:${PORT} adresinde çalışıyor`);
-});
